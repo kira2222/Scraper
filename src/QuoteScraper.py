@@ -101,33 +101,45 @@ def get_random_user_agent():
     return user_agent_rotator.get_random_user_agent()
 
 def fetch_page(url):
-    """Realiza una solicitud HTTP GET a la URL proporcionada con headers dinámicos."""
-    
-    # Obtener protocolo (ej: "http") y proxy (ej: "http://192.168.1.1:8080")
-    protocol, proxy_ip_port = get_random_proxy()
-
-    proxies = {
-        protocol: f"{proxy_ip_port}"
+    """Petición para la pagina"""
+    for attempt in range(3):  # 3 reintentos máximo
+        try:
+           # Obtener proxy aleatorio si es que hay uno disponible
+            proxy_data = get_random_proxy()
+            proxies = {
+                proxy_data[0]: proxy_data[1]
+            } if proxy_data else None
+            
+            headers = {
+                'User-Agent': get_random_user_agent(),
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Referer': 'https://www.google.com/'
             }
-    headers = {
-        'User-Agent': get_random_user_agent(),
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Referer': 'https://www.google.com/'
-    }
 
+            response = requests.get(
+                url,
+                headers=headers,
+                proxies=proxies,
+                timeout=10 + (attempt * 2)  # Timeout incremental
+            )
+
+            log.info(f"Solicitando {url} - Status: {response.status_code}")
+            response.raise_for_status()
+            
+            time.sleep(max(1, 2 - attempt))  # Espera decremental
+            return response.content
+
+        except requests.exceptions.RequestException as error:
+            log.warning(f"Intento {attempt + 1}/3 fallido: {str(error)}")
+            time.sleep(1 + attempt)  # Espera progresiva
+            continue
+    
+    # Último intento sin proxy
     try:
-        response = requests.get(url, headers=headers, timeout=10,proxies=proxies)
-        log.info(f"Solicitando {url} - Status: {response.status_code}")
-
-        if response.status_code != 200:
-            log.warning(f"Respuesta inesperada en {url}")
-            return None
-
-        time.sleep(1)  # Evitar bloqueos por exceso de solicitudes
-        return response.content
-
-    except requests.exceptions.RequestException as error:
-        log.failure(f"Error al solicitar {url}: {error}")
+        log.info("Intentando conexión directa")
+        return requests.get(url, headers=headers, timeout=15).content
+    except Exception as e:
+        log.error(f"Fallo definitivo: {str(e)}")
         return None
 
 def extract_quotes_from_page(html_content):
