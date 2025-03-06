@@ -13,7 +13,7 @@ Este proyecto automatiza la extracción de citas, autores y etiquetas de [Quotes
 
 1. **Clonar el repositorio**:
    ```bash
-   git clone [URL_del_repositorio] && cd proyecto
+   git clone https://github.com/kira2222/Scraper.git && cd proyecto
 
 
 2. **Construir y levantar los contenedores**:
