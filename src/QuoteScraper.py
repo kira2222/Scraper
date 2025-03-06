@@ -17,8 +17,6 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 # URL base del sitio a scrapear
 BASE_URL = "https://quotes.toscrape.com"
 
-# URL de api de proxy
-PROXY_URL = "https://gimmeproxy.com/api/getProxy?get=true&supportsHttps=true&maxCheckPeriod=3600"
 
 OUTPUT_FILE = "datos.json"
 
