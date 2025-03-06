@@ -93,11 +93,9 @@ def fetch_page(url):
             log.info(f"Intentando conexión proxy: {url}")
             proxies = [
                 {
-                    "socks4": "socks4://202.146.228.254:8088",
                     "socks4": "socks4://202.146.228.254:8088"
                 },
                 {
-                    "socks5": "socks5://192.241.177.96:10599",
                     "socks5": "socks5://192.241.177.96:10599"
                 }
 ]

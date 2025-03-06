@@ -12,8 +12,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar el código fuente y datos
 COPY src/ /app/src/
-COPY data/ /app/data/
 
-# Establecer el script de scraping como punto de entrada
-CMD ["python", "/app/src/QuoteScraper.py"]
+
+
 
