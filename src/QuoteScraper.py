@@ -198,4 +198,4 @@ def scrape_quotes():
     save_to_database(all_quotes)
 
 if __name__ == "__main__":
-    fetch_page(BASE_URL)
+    scrape_quotes()
