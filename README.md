@@ -51,7 +51,8 @@ Endpoints:
 
 - GET /quotes: Devuelve todas las citas.
 
-- GET /tags: Cuenta citas por etiqueta (ej: /tags/love).
+- GET /quotes/author/{nombre}: Devuelve las citas de un autor
+específico.
 
 - Base de datos: SQLite (almacenada en data/quotes.db).
 
