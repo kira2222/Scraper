@@ -1,0 +1,194 @@
+import json
+import random
+import requests
+from bs4 import BeautifulSoup
+from random_user_agent.user_agent import UserAgent
+from random_user_agent.params import SoftwareName, OperatingSystem
+import time
+import sqlite3
+from contextlib import closing
+import sys
+import io
+from pwn import log
+
+# Configurar salida estándar en UTF-8
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+
+# URL base del sitio a scrapear
+BASE_URL = "https://quotes.toscrape.com"
+
+# URL de api de proxy
+PROXY_URL = "https://gimmeproxy.com/api/getProxy?get=true&supportsHttps=true&maxCheckPeriod=3600"
+
+OUTPUT_FILE = "datos.json"
+
+
+def setup_database():
+    """Crea las tablas en la base de datos SQLite."""
+    with closing(sqlite3.connect("/app/data/quotes.db")) as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS quotes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                quote_text TEXT NOT NULL,
+                author TEXT NOT NULL
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS tags (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tag_name TEXT UNIQUE
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS quote_tags (
+                quote_id INTEGER,
+                tag_id INTEGER,
+                FOREIGN KEY(quote_id) REFERENCES quotes(id),
+                FOREIGN KEY(tag_id) REFERENCES tags(id)
+            )
+        """)
+        conn.commit()
+
+def save_to_database(quotes):
+    """Almacena las citas en la base de datos SQLite."""
+    with closing(sqlite3.connect("/app/data/quotes.db")) as conn:
+        cursor = conn.cursor()
+        for quote in quotes:
+            # Insertar quote y autor
+            cursor.execute(
+                "INSERT INTO quotes (quote_text, author) VALUES (?, ?)",
+                (quote['quote_text'], quote['author'])
+            )
+            quote_id = cursor.lastrowid
+            
+            # Insertar etiquetas
+            for tag_name in quote['tags']:
+                cursor.execute(
+                    "INSERT OR IGNORE INTO tags (tag_name) VALUES (?)",
+                    (tag_name,)
+                )
+                cursor.execute(
+                    "SELECT id FROM tags WHERE tag_name = ?", (tag_name,)
+                )
+                tag_id = cursor.fetchone()[0]
+                cursor.execute(
+                    "INSERT INTO quote_tags (quote_id, tag_id) VALUES (?, ?)",
+                    (quote_id, tag_id)
+                )
+        conn.commit()
+    log.success("Datos guardados en la base de datos")
+
+def get_random_proxy():
+    """Obtiene un proxy aleatorio para realizar solicitudes."""
+   
+    response = requests.get(PROXY_URL)
+    try:
+        if response.status_code== 200:
+            data= response.json()
+            protocol = data['protocol']
+            proxy = f"{data['protocol']}://{data['ip']}:{data['port']}"
+        return protocol,proxy
+    except Exception as e:
+        log.warning(f"Error al obtener proxy aleatorio: {str(e)}")
+        return None
+def get_random_user_agent():
+    """Genera un User-Agent aleatorio para cada solicitud."""
+    user_agent_rotator = UserAgent(
+        software_names=[SoftwareName.CHROME.value, SoftwareName.FIREFOX.value],
+        operating_systems=[OperatingSystem.WINDOWS.value, OperatingSystem.LINUX.value]
+    )
+    return user_agent_rotator.get_random_user_agent()
+
+def fetch_page(url):
+    """Realiza una solicitud HTTP GET a la URL proporcionada con headers dinámicos."""
+    
+    # Obtener protocolo (ej: "http") y proxy (ej: "http://192.168.1.1:8080")
+    protocol, proxy_ip_port = get_random_proxy()
+
+    proxies = {
+        protocol: f"{proxy_ip_port}"
+            }
+    headers = {
+        'User-Agent': get_random_user_agent(),
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Referer': 'https://www.google.com/'
+    }
+
+    try:
+        response = requests.get(url, headers=headers, timeout=10,proxies=proxies)
+        log.info(f"Solicitando {url} - Status: {response.status_code}")
+
+        if response.status_code != 200:
+            log.warning(f"Respuesta inesperada en {url}")
+            return None
+
+        time.sleep(1)  # Evitar bloqueos por exceso de solicitudes
+        return response.content
+
+    except requests.exceptions.RequestException as error:
+        log.failure(f"Error al solicitar {url}: {error}")
+        return None
+
+def extract_quotes_from_page(html_content):
+    """Extrae las citas de una página HTML dada y devuelve una lista de diccionarios."""
+    soup = BeautifulSoup(html_content, 'html.parser')
+    quotes_elements = soup.find_all('div', class_='quote')
+
+    if not quotes_elements:
+        return None
+
+    quotes_data = []
+    for quote in quotes_elements:
+        quote_text = quote.find('span', class_='text').get_text(strip=True)
+        author = quote.find('small', class_='author').get_text(strip=True)
+        tags = [tag.get_text(strip=True) for tag in quote.find('div', class_='tags').find_all('a', class_='tag')]
+
+        quotes_data.append({
+            'quote_text': quote_text,
+            'author': author,
+            'tags': tags
+        })
+    
+    return quotes_data
+
+def save_quotes_to_json(quotes, file_path):
+    """Guarda las citas extraídas en un archivo JSON."""
+    try:
+        with open(file_path, 'w', encoding='utf-8') as json_file:
+            json.dump(quotes, json_file, indent=2, ensure_ascii=False)
+        log.success(f"Datos guardados en {file_path}")
+    except IOError as error:
+        log.failure(f"Error al escribir el archivo JSON: {error}")
+
+
+def scrape_quotes():
+    """Función principal para extraer todas las citas del sitio."""
+    setup_database()
+    all_quotes = []
+    page_number = 1
+    progress = log.progress("Scraping de citas")
+
+    while True:
+        page_url = f"{BASE_URL}/page/{page_number}"
+        html_content = fetch_page(page_url)
+
+        if not html_content:
+            log.warning(f"No se pudo obtener contenido de {page_url}. Terminando scraping.")
+            break
+
+        quotes = extract_quotes_from_page(html_content)
+
+        if not quotes:
+            log.success(f"Scraping finalizado. Última página procesada: {page_number - 1}")
+            break
+
+        all_quotes.extend(quotes)
+        progress.status(f"Procesando página {page_number}")
+        page_number += 1
+
+    save_quotes_to_json(all_quotes, OUTPUT_FILE)
+    save_to_database(all_quotes)
+
+if __name__ == "__main__":
+    get_random_proxy()

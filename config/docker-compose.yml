@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  scraper:
+    build:
+      context: ..
+      dockerfile: config/Dockerfile
+    container_name: web_scraper
+    command: python /app/src/QuoteScraper.py
+    volumes:
+      - ../data/datos.json:/app/data/datos.json
+      - ../data/quotes.db:/app/data/quotes.db
+    restart: "no"
+
+  api:
+    build:
+      context: ..
+      dockerfile: config/Dockerfile
+    container_name: flask_api
+    command: bash -c "while [ ! -f /app/data/quotes.db ]; do sleep 5; done && python /app/src/app.py"
+    ports:
+      - "5000:5000"
+    volumes:
+      - ../data/quotes.db:/app/data/quotes.db
+    depends_on:
+      scraper:
+        condition: service_completed_successfully
