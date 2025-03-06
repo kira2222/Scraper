@@ -64,4 +64,4 @@ def get_quotes_by_author(author):
         return jsonify({"error": f"Error inesperado: {str(e)}"}), 500
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, host="0.0.0.0")
