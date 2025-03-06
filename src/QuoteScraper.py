@@ -79,19 +79,7 @@ def save_to_database(quotes):
         conn.commit()
     log.success("Datos guardados en la base de datos")
 
-def get_random_proxy():
-    """Obtiene un proxy aleatorio para realizar solicitudes."""
-   
-    response = requests.get(PROXY_URL)
-    try:
-        if response.status_code== 200:
-            data= response.json()
-            protocol = data['protocol']
-            proxy = f"{data['protocol']}://{data['ip']}:{data['port']}"
-        return protocol,proxy
-    except Exception as e:
-        log.warning(f"Error al obtener proxy aleatorio: {str(e)}")
-        return None
+
 def get_random_user_agent():
     """Genera un User-Agent aleatorio para cada solicitud."""
     user_agent_rotator = UserAgent(
@@ -104,12 +92,14 @@ def fetch_page(url):
     """Petición para la pagina"""
     for attempt in range(3):  # 3 reintentos máximo
         try:
-           # Obtener proxy aleatorio si es que hay uno disponible
-            proxy_data = get_random_proxy()
+            log.info(f"Intentando conexión proxy: {url}")
             proxies = {
-                proxy_data[0]: proxy_data[1]
-            } if proxy_data else None
-            
+                "socks4": "socks4:://202.146.228.254:8088",
+                "socks5":"socks5://192.241.177.96:10599",
+                "socks4": "socks4://190.0.22.35:61155",
+                "socks4": "socks4://186.145.192.251:5678"
+            } 
+            print(proxies)
             headers = {
                 'User-Agent': get_random_user_agent(),
                 'Accept-Language': 'en-US,en;q=0.9',
@@ -120,13 +110,12 @@ def fetch_page(url):
                 url,
                 headers=headers,
                 proxies=proxies,
-                timeout=10 + (attempt * 2)  # Timeout incremental
+                timeout=10   # Timeout incremental
             )
 
             log.info(f"Solicitando {url} - Status: {response.status_code}")
             response.raise_for_status()
             
-            time.sleep(max(1, 2 - attempt))  # Espera decremental
             return response.content
 
         except requests.exceptions.RequestException as error:
