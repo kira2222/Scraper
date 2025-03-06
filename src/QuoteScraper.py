@@ -99,7 +99,8 @@ def fetch_page(url):
                 "socks4": "socks4://190.0.22.35:61155",
                 "socks4": "socks4://186.145.192.251:5678"
             } 
-            print(proxies)
+            # Establecer proxy aleatorio
+            proxies = random.choice(list(proxies.items()))
             headers = {
                 'User-Agent': get_random_user_agent(),
                 'Accept-Language': 'en-US,en;q=0.9',
