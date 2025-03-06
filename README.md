@@ -45,6 +45,8 @@ Funcionalidades:
 
 - Delays entre solicitudes.
 
+- Uso de proxys. 
+
 2. **API (app.py)**
 
 Endpoints:
