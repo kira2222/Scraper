@@ -93,14 +93,19 @@ def fetch_page(url):
     for attempt in range(3):  # 3 reintentos máximo
         try:
             log.info(f"Intentando conexión proxy: {url}")
-            proxies = {
-                "socks4": "socks4:://202.146.228.254:8088",
-                "socks5":"socks5://192.241.177.96:10599",
-                "socks4": "socks4://190.0.22.35:61155",
-                "socks4": "socks4://186.145.192.251:5678"
-            } 
-            # Establecer proxy aleatorio
-            proxies = random.choice(list(proxies.items()))
+            proxies = [
+                {
+                    "socks4": "socks4://202.146.228.254:8088",
+                    "socks4": "socks4://202.146.228.254:8088"
+                },
+                {
+                    "socks5": "socks5://192.241.177.96:10599",
+                    "socks5": "socks5://192.241.177.96:10599"
+                }
+]
+
+            # Seleccionar proxy aleatorio
+            proxy = random.choice(proxies)
             headers = {
                 'User-Agent': get_random_user_agent(),
                 'Accept-Language': 'en-US,en;q=0.9',
@@ -110,7 +115,7 @@ def fetch_page(url):
             response = requests.get(
                 url,
                 headers=headers,
-                proxies=proxies,
+                proxies=proxy,
                 timeout=10   # Timeout incremental
             )
 
@@ -193,4 +198,4 @@ def scrape_quotes():
     save_to_database(all_quotes)
 
 if __name__ == "__main__":
-    scrape_quotes()
+    fetch_page(BASE_URL)
