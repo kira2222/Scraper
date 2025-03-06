@@ -15,12 +15,13 @@ Este proyecto automatiza la extracción de citas, autores y etiquetas de [Quotes
    ```bash
    git clone https://github.com/kira2222/Scraper.git && cd proyecto
 
+2. **Ingresar a la carpeta config**
 
-2. **Construir y levantar los contenedores**:
+3. **Construir y levantar los contenedores**:
    ```bash
-   docker-compose up --build
+   docker-compose up 
 
-3. **Acceder a la API**:
+4. **Acceder a la API**:
 - Abre http://localhost:5000/quotes en tu navegador.
 
 
@@ -50,7 +51,8 @@ Endpoints:
 
 - GET /quotes: Devuelve todas las citas.
 
-- GET /tags: Cuenta citas por etiqueta (ej: /tags/love).
+- GET /quotes/author/{nombre}: Devuelve las citas de un autor
+específico.
 
 - Base de datos: SQLite (almacenada en data/quotes.db).
 
