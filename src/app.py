@@ -16,27 +16,17 @@ def get_db_connection():
 
 @app.route('/quotes', methods=['GET'])
 def get_all_quotes():
-    """Endpoint para obtener todas las citas con sus autores y etiquetas."""
+    """Endpoint para obtener todas las citas"""
     try:
         with closing(get_db_connection()) as conn:
             cursor = conn.cursor()
             
-            # Consulta para obtener citas con sus etiquetas
-            cursor.execute("""
-                SELECT q.quote_text, q.author, GROUP_CONCAT(t.tag_name) as tags
-                FROM quotes q
-                LEFT JOIN quote_tags qt ON q.id = qt.quote_id
-                LEFT JOIN tags t ON qt.tag_id = t.id
-                GROUP BY q.id
-            """)
+            # Consulta para obtener citas 
+            cursor.execute("SELECT quote_text FROM quotes")
             
             # Procesar resultados y construir respuesta
             quotes = [
-                {
-                    "quote": row["quote_text"],
-                    "author": row["author"],
-                    "tags": row["tags"].split(',') if row["tags"] else []
-                } 
+                {"quote": row["quote_text"]}
                 for row in cursor.fetchall()
             ]
             
@@ -49,31 +39,22 @@ def get_all_quotes():
     except Exception as e:
         return jsonify({"error": f"Error inesperado: {str(e)}"}), 500
 
-@app.route('/tags', methods=['GET'])
-def get_tags_count():
-    """Endpoint para contar cuántas citas hay asociadas a cada etiqueta."""
+@app.route('/quotes/author/<string:author>', methods=['GET'])
+def get_quotes_by_author(author):
+    """Endpoint para obtener citas de un autor específico."""
     try:
         with closing(get_db_connection()) as conn:
             cursor = conn.cursor()
-            
-            # Consulta para contar citas por etiqueta
-            cursor.execute("""
-                SELECT 
-                    t.tag_name AS etiqueta,
-                    COUNT(q.id) AS total_citas
-                FROM tags t
-                LEFT JOIN quote_tags qt ON t.id = qt.tag_id
-                LEFT JOIN quotes q ON qt.quote_id = q.id
-                GROUP BY t.tag_name
-            """)
-            
-            # Procesar resultados
-            stats = [
-                {"etiqueta": row["etiqueta"], "total_citas": row["total_citas"]} 
+            cursor.execute("SELECT quote_text FROM quotes WHERE author = ?", (author,))
+            quotes = [
+                {"quote": row["quote_text"]} 
                 for row in cursor.fetchall()
             ]
             
-            return jsonify({"estadisticas_etiquetas": stats})
+            if not quotes:
+                return jsonify({"error": "No quotes found for this author"}), 404
+            
+            return jsonify(quotes)
             
     except sqlite3.Error as e:
         return jsonify({"error": f"Error en la base de datos: {str(e)}"}), 500
@@ -82,5 +63,5 @@ def get_tags_count():
     except Exception as e:
         return jsonify({"error": f"Error inesperado: {str(e)}"}), 500
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+if __name__ == "__main__":
+    app.run(debug=True)
